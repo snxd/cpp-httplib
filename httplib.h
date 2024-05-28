@@ -2810,7 +2810,23 @@ inline mmap::~mmap() { close(); }
 inline bool mmap::open(const char *path) {
   close();
 
-#if defined(_WIN32)
+#if defined(_WIN32) && (_WIN32_WINNT <= _WIN32_WINNT_WIN7)
+  hFile_ = ::CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+  if (hFile_ == INVALID_HANDLE_VALUE) { return false; }
+
+  size_ = ::GetFileSize(hFile_, NULL);
+
+  hMapping_ = ::CreateFileMapping(hFile_, NULL, PAGE_READONLY, 0, 0, NULL);
+
+  if (hMapping_ == NULL) {
+    close();
+    return false;
+  }
+
+  addr_ = ::MapViewOfFile(hMapping_, FILE_MAP_READ, 0, 0, 0);
+#elif defined(_WIN32)
   std::wstring wpath;
   for (size_t i = 0; i < strlen(path); i++) {
     wpath += path[i];
